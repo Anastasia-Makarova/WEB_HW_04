@@ -87,7 +87,7 @@ def run_server(ip, port):
             payload = { str(datetime.now()): {key: value for key, value in [el.split("=") for el in data.split("&")]} } 
             
             with open(BASE_DIR.joinpath("storage/data.json"), "a", encoding="utf-8") as datafile:
-                json.dump(payload, datafile, ensure_ascii=False) 
+                json.dump(payload, datafile, ensure_ascii=False, indent=2) 
 
             print(f"Data received and processed: {payload}")
 
