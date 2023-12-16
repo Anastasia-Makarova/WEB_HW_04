@@ -1,9 +1,11 @@
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from threading import Thread
 import urllib.parse # маршрутизация
 import mimetypes # работа с css, jpg etc.
 from datetime import datetime
 import pathlib
 import json
+import socket
 
 
 BASE_DIR = pathlib.Path(__file__).resolve().parent
@@ -12,18 +14,32 @@ BASE_DIR = pathlib.Path(__file__).resolve().parent
 class HTTPHandler (BaseHTTPRequestHandler):
 
     def do_POST(self):
-        # self.send_html("message.html")
+
+        host = socket.gethostname()  # computer name or other string
+        port = 5000
+
+        client = socket.socket()
+        client.connect((host, port))
+
         body = self.rfile.read(int(self.headers["Content-Length"]))
         body = urllib.parse.unquote_plus(body.decode())
-        # body = body.replace("=", "")
 
-        payload = { str(datetime.now()): {key: value for key, value in [el.split("=") for el in body.split("&")]} }
-        
-    
-        with open(BASE_DIR.joinpath("storage/data.json"), "a", encoding="utf-8") as datafile:
-            json.dump(payload, datafile, ensure_ascii=False)
 
-        print(payload)
+    #redirect to main
+        self.send_response(302)
+        self.send_header("Location", "/")
+        self.end_headers()
+
+
+        while True:
+            
+            client.send(body.encode())
+            # data = client.recv(1024).decode() # receive 1024 b
+
+            if not body:
+                break
+
+        client.close()
 
         self.send_response(302)
         self.send_header("Location", "/")
@@ -43,8 +59,6 @@ class HTTPHandler (BaseHTTPRequestHandler):
                 else:   
                     self.send_html("error.html", 404)
              
-
-
     def send_html(self, filename, status_code = 200):
         self.send_response(status_code)
         self.send_header("Content-Type", "text/html")
@@ -72,9 +86,30 @@ class HTTPHandler (BaseHTTPRequestHandler):
             self.wfile.write(file.read())
 
 
+def socket_server():
+        host = socket.gethostname()  # computer name or other string
+        port = 5000
+
+        server = socket.socket()
+        server.bind((host,port)) # host server
+
+        server.listen(1) #number of clients able to connect
+
+        connection, address = server.accept() #address of connecting client
+
+        while True:
+            data = connection.recv(1024).decode() #receive 1024 b
+            
+            payload = { str(datetime.now()): {key: value for key, value in [el.split("=") for el in data.split("&")]} }
+
+            with open(BASE_DIR.joinpath("storage/data.json"), "a", encoding="utf-8") as datafile:
+                json.dump(payload, datafile, ensure_ascii=False)
+
+        # connection.close()
 
 
 def run(server=HTTPServer, handler=HTTPHandler):
+    
     address = ("", 3000)
     http_server = server(address, handler)
     try:
@@ -86,5 +121,7 @@ def run(server=HTTPServer, handler=HTTPHandler):
 
 if __name__ == "__main__":
     
-    run()
-    # print(BASE_DIR.joinpath("index.html"))
+    thread_1 = Thread(target=socket_server, args=())
+    thread_1.start()
+    tread_2 = Thread(target=run, args=())
+    tread_2.start()
